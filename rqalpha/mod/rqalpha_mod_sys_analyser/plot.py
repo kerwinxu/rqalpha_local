@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Last Change:  2018-01-09 09:24:03
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +28,7 @@ def plot_result(result_dict, show_windows=True, savefile=None):
 
     rcParams['font.family'] = 'sans-serif'
     rcParams['font.sans-serif'] = [
+        u'SimHei',
         u'Microsoft Yahei',
         u'Heiti SC',
         u'Heiti TC',
@@ -34,7 +36,6 @@ def plot_result(result_dict, show_windows=True, savefile=None):
         u'WenQuanYi Zen Hei',
         u'WenQuanYi Micro Hei',
         u"文泉驿微米黑",
-        u'SimHei',
     ] + rcParams['font.sans-serif']
     rcParams['axes.unicode_minus'] = False
 
