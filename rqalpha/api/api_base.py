@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Last Change:  2018-01-09 12:32:14
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -332,6 +333,125 @@ def get_yield_curve(date=None, tenor=None):
 
     return env.data_proxy.get_yield_curve(start_date=date, end_date=date, tenor=tenor)
 
+
+@export_as_api
+@ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,
+                                EXECUTION_PHASE.ON_BAR,
+                                EXECUTION_PHASE.ON_TICK,
+                                EXECUTION_PHASE.AFTER_TRADING,
+                                EXECUTION_PHASE.SCHEDULED)
+@apply_rules(verify_that('order_book_id').is_valid_instrument(),
+             verify_that('frequency').is_valid_frequency(),
+             verify_that('fields').are_valid_fields(names.VALID_HISTORY_FIELDS, ignore_none=True),
+            verify_that('dt').is_instance_of(datetime.datetime),
+             verify_that('skip_suspended').is_instance_of(bool),
+             verify_that('include_now').is_instance_of(bool),
+             verify_that('adjust_type').is_in({'pre', 'none', 'post'}))
+def get_bars_all(order_book_id,  frequency="1d", dt=None, fields=None, skip_suspended=False,
+                 include_now=False, adjust_type='pre'):
+    """
+    获取指定合约的历史行情，同时支持日以及分钟历史数据。不能在init中调用。 注意，该API不会自动跳过停牌数据。
+
+    日回测获取分钟历史数据：不支持
+
+    日回测获取日历史数据
+
+    =========================   ===================================================
+    调用时间                      返回数据
+    =========================   ===================================================
+    T日before_trading            T-1日day bar
+    :param int bar_count: 获取的历史数据数量，必填项
+    T日handle_bar                T日day bar
+    =========================   ===================================================
+
+    分钟回测获取日历史数据
+
+    =========================   ===================================================
+    调用时间                      返回数据
+    =========================   ===================================================
+    T日before_trading            T-1日day bar
+    T日handle_bar                T-1日day bar
+    =========================   ===================================================
+
+    分钟回测获取分钟历史数据
+
+    =========================   ===================================================
+    :param datetime : 获取哪个时间点前的数据，选填
+    调用时间                      返回数据
+    =========================   ===================================================
+    T日before_trading            T-1日最后一个minute bar
+    T日handle_bar                T日当前minute bar
+    =========================   ===================================================
+
+    :param order_book_id: 合约代码
+    :type order_book_id: `str`
+
+    :param str frequency: 获取数据什么样的频率进行。'1d'或'1m'分别表示每日和每分钟，我设置成默认1天了
+    :param str fields: 返回数据字段。必填项。见下方列表。
+
+    =========================   ===================================================
+    fields                      字段名
+    =========================   ===================================================
+    datetime                    时间戳
+    open                        开盘价
+    high                        最高价
+    low                         最低价
+    close                       收盘价
+    volume                      成交量
+    total_turnover              成交额
+    open_interest               持仓量（期货专用）
+    basis_spread                期现差（股指期货专用）
+    settlement                  结算价（期货日线专用）
+    prev_settlement             结算价（期货日线专用）
+    =========================   ===================================================
+
+    :param bool skip_suspended: 是否跳过停牌数据
+    :param bool include_now: 是否包含当前数据
+    :param str adjust_type: 复权类型，默认为前复权 pre；可选 pre, none, post
+
+    :return: `ndarray`, 方便直接与talib等计算库对接，效率较history返回的DataFrame更高。
+
+    :example:
+
+    获取最近5天的日线收盘价序列（策略当前日期为20160706）:
+
+    ..  code-block:: python3
+        :linenos:
+
+        [In]
+        logger.info(history_bars('000002.XSHE', datetime.datetime.new(), '1d', 'close'))
+        [Out]，这里是获得所有的数据了，而不是只是5个。
+        [ 8.69  8.7   8.71  8.81  8.81]
+    """
+    order_book_id = assure_order_book_id(order_book_id)
+    env = Environment.get_instance()
+    # dt = env.calendar_dt
+    # 默认为当前时间
+    if dt is None:
+        dt = datetime.datetime.now()
+
+    if frequency[-1] == 'm' and env.config.base.frequency == '1d':
+        raise RQInvalidArgument('can not get minute history in day back test')
+
+    if adjust_type not in {'pre', 'post', 'none'}:
+        raise RuntimeError('invalid adjust_type')
+
+    if frequency == '1d':
+        sys_frequency = Environment.get_instance().config.base.frequency
+        if ((sys_frequency in ['1m', 'tick'] and not include_now) or ExecutionContext.phase() == EXECUTION_PHASE.BEFORE_TRADING):
+            dt = env.data_proxy.get_previous_trading_date(dt)
+            # 当 EXECUTION_PHASE.BEFORE_TRADING 的时候，强制 include_now 为 False
+            include_now = False
+        if sys_frequency == "1d":
+            # 日回测不支持 include_now
+            include_now = False
+
+    if fields is None:
+        fields = ["datetime", "open", "high", "low", "close", "volume"]
+
+    return env.data_proxy.get_bars_all(order_book_id, frequency, fields, dt,
+                                       skip_suspended=skip_suspended, include_now=include_now,
+                                       adjust_type=adjust_type, adjust_orig=env.trading_dt)
 
 @export_as_api
 @ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,

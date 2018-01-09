@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Last Change:  2018-01-08 22:51:18
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -155,6 +156,15 @@ class DataProxy(InstrumentMixin, TradingDatesMixin):
                                               skip_suspended=skip_suspended, include_now=include_now,
                                               adjust_type=adjust_type, adjust_orig=adjust_orig)
 
+    def get_bars_all(self, order_book_id, frequency, field, dt,
+                     skip_suspended=True, include_now=False,
+                     adjust_type='pre', adjust_orig=None):
+        instrument = self.instruments(order_book_id)
+        if adjust_orig is None:
+            adjust_orig = dt
+        return self._data_source.get_bars_all(instrument, frequency, field, dt,
+                                              skip_suspended=skip_suspended, include_now=include_now,
+                                              adjust_type=adjust_type, adjust_orig=adjust_orig)
     def current_snapshot(self, order_book_id, frequency, dt):
         instrument = self.instruments(order_book_id)
         if frequency == '1d':

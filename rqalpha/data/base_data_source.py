@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Last Change:  2018-01-08 22:53:11
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -169,6 +170,36 @@ class BaseDataSource(AbstractDataSource):
         dt = np.uint64(convert_date_to_int(dt))
         i = bars['datetime'].searchsorted(dt, side='right')
         left = i - bar_count if i >= bar_count else 0
+        bars = bars[left:i]
+        if adjust_type == 'none' or instrument.type in {'Future', 'INDX'}:
+            # 期货及指数无需复权
+            return bars if fields is None else bars[fields]
+
+        if isinstance(fields, str) and fields not in FIELDS_REQUIRE_ADJUSTMENT:
+            return bars if fields is None else bars[fields]
+
+        return adjust_bars(bars, self.get_ex_cum_factor(instrument.order_book_id),
+                           fields, adjust_type, adjust_orig)
+
+    def get_bars_all(self, instrument,  frequency, fields, dt,
+                     skip_suspended=True, include_now=False,
+                     adjust_type='pre', adjust_orig=None):
+        if frequency != '1d':
+            raise NotImplementedError
+
+        if skip_suspended and instrument.type == 'CS':
+            bars = self._filtered_day_bars(instrument)
+        else:
+            bars = self._all_day_bars_of(instrument)
+
+        if bars is None or not self._are_fields_valid(fields, bars.dtype.names):
+            return None
+
+        dt = np.uint64(convert_date_to_int(dt))
+        i = bars['datetime'].searchsorted(dt, side='right')
+        # left = i - bar_count if i >= bar_count else 0
+        # 这个get_bars_all跟history_bars最大的区别就是，这里的left为0，也就是说从头读取所有的数据
+        left = 0
         bars = bars[left:i]
         if adjust_type == 'none' or instrument.type in {'Future', 'INDX'}:
             # 期货及指数无需复权
