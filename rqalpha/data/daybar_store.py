@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #
+# Last Change:  2018-01-10 00:39:40
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +24,7 @@ from rqalpha.utils.i18n import gettext as _
 
 class DayBarStore(object):
     def __init__(self, main, converter):
-        self._table = bcolz.open(main, 'r')
+        self._table = bcolz.open(main, 'a')
         self._index = self._table.attrs['line_map']
         self._converter = converter
 
@@ -33,6 +34,39 @@ class DayBarStore(object):
             l.remove(v)
         except ValueError:
             pass
+
+    def add_indicator(self, order_book_id, field_name, field_list):
+        """
+            Description : 给数据添加指标的。
+            Arg :
+                @order_book_id : 股票id
+                @field_name : 列名
+                @field_list : 列数据
+            Returns :
+            Raises	 :
+        """
+        try:
+            s, e = self._index[order_book_id]
+            # 判断是否有这个列名
+            if field_name not in self._table.cols.names:
+                import numpy as np
+                _data = np.zeros(len(self._table))
+                self._table.addcol(_data, name=field_name)
+            self._table.cols[field_name][s:e] = field_list
+            # 刷新到磁盘
+            self.flush()
+        except KeyError:
+            six.print_(_(u"No data for {}").format(order_book_id))
+            return
+    def flush(self):
+        """
+            Description : 刷新到磁盘
+            Arg :
+            Returns :
+            Raises	 :
+        """
+        self._table.flush()
+        pass
 
     def get_bars(self, order_book_id, fields=None):
         try:

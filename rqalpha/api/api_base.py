@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Last Change:  2018-01-09 12:32:14
+# Last Change:  2018-01-09 23:55:05
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,6 +48,7 @@ from rqalpha.model.order import Order, MarketOrder, LimitOrder, OrderStyle
 # noinspection PyUnresolvedReferences
 from rqalpha.events import EVENT
 
+import numpy
 
 __all__ = [
     'logger',
@@ -336,6 +337,7 @@ def get_yield_curve(date=None, tenor=None):
 
 @export_as_api
 @ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,
+                                EXECUTION_PHASE.ON_INIT,
                                 EXECUTION_PHASE.ON_BAR,
                                 EXECUTION_PHASE.ON_TICK,
                                 EXECUTION_PHASE.AFTER_TRADING,
@@ -347,7 +349,7 @@ def get_yield_curve(date=None, tenor=None):
              verify_that('skip_suspended').is_instance_of(bool),
              verify_that('include_now').is_instance_of(bool),
              verify_that('adjust_type').is_in({'pre', 'none', 'post'}))
-def get_bars_all(order_book_id,  frequency="1d", dt=None, fields=None, skip_suspended=False,
+def get_bars_all(order_book_id,  frequency="1d",fields=None,dt=None, skip_suspended=False,
                  include_now=False, adjust_type='pre'):
     """
     获取指定合约的历史行情，同时支持日以及分钟历史数据。不能在init中调用。 注意，该API不会自动跳过停牌数据。
@@ -452,6 +454,36 @@ def get_bars_all(order_book_id,  frequency="1d", dt=None, fields=None, skip_susp
     return env.data_proxy.get_bars_all(order_book_id, frequency, fields, dt,
                                        skip_suspended=skip_suspended, include_now=include_now,
                                        adjust_type=adjust_type, adjust_orig=env.trading_dt)
+
+@export_as_api
+@ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,
+                                EXECUTION_PHASE.ON_INIT,
+                                EXECUTION_PHASE.ON_BAR,
+                                EXECUTION_PHASE.ON_TICK,
+                                EXECUTION_PHASE.AFTER_TRADING,
+                                EXECUTION_PHASE.SCHEDULED)
+@apply_rules(verify_that('order_book_id').is_valid_instrument(),
+             verify_that('frequency').is_valid_frequency(),
+             verify_that('field_name').is_instance_of(str),
+             verify_that('field_list').is_instance_of(numpy.ndarray))
+def add_indicator(order_book_id, frequency, field_name, field_list):
+    """
+        Description : 给数据添加指标的。
+        Arg :
+            @order_book_id : 股票id
+            @frequency : 频率
+            @field_list : 列名
+            @field_list : 列数据
+        Returns :
+        Raises	 :
+    """
+    order_book_id = assure_order_book_id(order_book_id)
+    env = Environment.get_instance()
+
+    if frequency[-1] == 'm' and env.config.base.frequency == '1d':
+        raise RQInvalidArgument('can not get minute history in day back test')
+
+    return env.data_proxy.add_indicator(order_book_id, frequency, field_name, field_list)
 
 @export_as_api
 @ExecutionContext.enforce_phase(EXECUTION_PHASE.BEFORE_TRADING,

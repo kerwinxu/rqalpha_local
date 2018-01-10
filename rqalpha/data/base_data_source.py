@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Last Change:  2018-01-08 22:53:11
+# Last Change:  2018-01-10 00:09:56
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -112,6 +112,18 @@ class BaseDataSource(AbstractDataSource):
         i = self._index_of(instrument)
         return self._day_bars[i].get_bars(instrument.order_book_id, fields=None)
 
+    # @lru_cache(None)
+    def add_indicator2(self, instrument, field_name, field_list):
+        """
+            Description : 有这个版本2函数的原因是，我照抄如上的_all_day_bars_of
+            Arg :
+            Returns :
+            Raises	 :
+        """
+        i = self._index_of(instrument)
+        return self._day_bars[i].add_indicator(instrument.order_book_id, field_name, field_list)
+
+
     @lru_cache(None)
     def _filtered_day_bars(self, instrument):
         bars = self._all_day_bars_of(instrument)
@@ -180,6 +192,22 @@ class BaseDataSource(AbstractDataSource):
 
         return adjust_bars(bars, self.get_ex_cum_factor(instrument.order_book_id),
                            fields, adjust_type, adjust_orig)
+
+    def add_indicator(self, order_book_id, frequency, field_name, field_list):
+        """
+            Description : 给数据添加指标的。
+            Arg :
+                @order_book_id : 股票id
+                @frequency : 频率
+                @field_name : 列名
+                @field_list : 列数据
+            Returns :
+            Raises	 :
+        """
+        if frequency != '1d':
+            raise NotImplementedError
+        # 然后就获得开始地址和结束地址。
+        return self.add_indicator2(order_book_id, field_name, field_list)
 
     def get_bars_all(self, instrument,  frequency, fields, dt,
                      skip_suspended=True, include_now=False,

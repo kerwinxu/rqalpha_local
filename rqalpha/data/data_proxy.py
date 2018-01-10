@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Last Change:  2018-01-08 22:51:18
+# Last Change:  2018-01-10 00:16:39
 # Copyright 2017 Ricequant, Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -155,6 +155,20 @@ class DataProxy(InstrumentMixin, TradingDatesMixin):
         return self._data_source.history_bars(instrument, bar_count, frequency, field, dt,
                                               skip_suspended=skip_suspended, include_now=include_now,
                                               adjust_type=adjust_type, adjust_orig=adjust_orig)
+
+    def add_indicator(self, order_book_id, frequency, field_name, field_list):
+        """
+            Description : 给数据添加指标的。
+            Arg :
+                @order_book_id : 股票id
+                @frequency : 频率
+                @field_list : 列名
+                @field_list : 列数据
+            Returns :
+            Raises	 :
+        """
+        instrument = self.instruments(order_book_id)
+        return self._data_source.add_indicator(instrument, frequency, field_name, field_list)
 
     def get_bars_all(self, order_book_id, frequency, field, dt,
                      skip_suspended=True, include_now=False,
